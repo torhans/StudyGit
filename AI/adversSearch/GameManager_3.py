@@ -4,6 +4,7 @@ from PlayerAI_3   import PlayerAI
 from Displayer_3  import Displayer
 from random       import randint
 import time
+import random
 
 defaultInitialTiles = 2
 defaultProbability = 0.9
@@ -31,6 +32,7 @@ class GameManager:
         self.playerAI   = None
         self.displayer  = None
         self.over       = False
+        self.chain=[]
 
     def setComputerAI(self, computerAI):
         self.computerAI = computerAI
@@ -43,6 +45,7 @@ class GameManager:
 
     def updateAlarm(self, currTime):
         if currTime - self.prevTime > timeLimit + allowance:
+            print("Time out")
             self.over = True
         else:
             #while time.clock() - self.prevTime < timeLimit + allowance:
@@ -105,6 +108,8 @@ class GameManager:
 
             if (not self.over) and DODISP:
                 self.displayer.display(self.grid)
+                
+            self.chain.append(self.grid.clone())
 
             # Exceeding the Time Allotted for Any Turn Terminates the Game
             self.updateAlarm(time.clock())
@@ -134,36 +139,49 @@ class GameManager:
         #threading.Thread.__init__(self)
         #self.threadID = threadID
         #self.result=None
+
+
       
 def runProcess(a):
-    print('{:6}'.format(a),end='\r')
     gameManager = GameManager()
-    playerAI  	= PlayerAI()
+    playerAI  	= PlayerAI(a[1])
     computerAI  = ComputerAI()
     displayer 	= Displayer()
 
     gameManager.setDisplayer(displayer)
     gameManager.setPlayerAI(playerAI)
     gameManager.setComputerAI(computerAI)
-    return gameManager.start()
+    res=gameManager.start()
+    print('{:6}   {:7}'.format(a[0],res),end='\r')
+    return res,gameManager,
       
 from multiprocessing import Process, Value,Pool
 import numpy as np
       
-def main():
-    results=[]
-    threads=[]
-    values=[]
-    n=10
-    with Pool(processes=8) as pool:
-        results=pool.map(runProcess, range(n))
-    emean=np.mean(np.log(results))
-    estd=np.std(np.log(results))
-    print(results)
-    print(np.exp(emean-3*estd/np.sqrt(n)))
-    print(np.exp(emean))
-    print(np.exp(emean+3*estd/np.sqrt(n)))
+def main(v=1,n=10):
+    tresults=[]
+    d=time.time()
+    for t in range(v):
+        print("t: ",t,v,time.time()-d)
+        results=[]
+        threads=[]
+        values=[]
+        #r=[0,1.2*np.sqrt(2)**random.randint(-4,4),1,0,1.2e-3*np.sqrt(2)**random.randint(-4,4),3e-4*np.sqrt(2)**random.randint(-4,4)]
+        r=[0,1.2,1,0,1.2e-3,3e-4]
+        with Pool(processes=8) as pool:
+            result=pool.map(runProcess, zip(range(n),n*[r]))
+        results=[x[0] for x in result]
+        emean=np.mean(np.log(results))
+        estd=np.std(np.log(results))
+        print(r)
+        print(results)
+        print(np.exp(emean-3*estd/np.sqrt(n)))
+        print(np.exp(emean))
+        print(np.exp(emean+3*estd/np.sqrt(n)))
+        tresults.append([r,results,result,np.exp(emean-3*estd/np.sqrt(n)),np.exp(emean),np.exp(emean+3*estd/np.sqrt(n))])
+    return tresults
 
 
 if __name__ == '__main__':
-    main()
+    #print(runProcess((1,[0,1.2,1,0,1.2e-3,3e-4])))
+    print(main(v=1,n=100))
